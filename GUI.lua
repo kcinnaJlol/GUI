@@ -353,7 +353,159 @@ local function containerDrawOnScreen(container, ...)
 	container:draw()
 	buffer.drawChanges(...)
 end
+local function containerPullAndHandleEvents(container, eventPullTimeout, filter)
+	local animation, animationIndex, animationOnFinishMethods, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32
+	
+	local function handle(isScreenEvent, currentContainer, intersectionX1, intersectionY1, intersectionX2, intersectionY2)
+		if
+			not isScreenEvent or
+			intersectionX1 and
+			e3 >= intersectionX1 and
+			e3 <= intersectionX2 and
+			e4 >= intersectionY1 and
+			e4 <= intersectionY2
+		then
+			local currentContainerPassed, child, newIntersectionX1, newIntersectionY1, newIntersectionX2, newIntersectionY2
 
+			if isScreenEvent then
+				if currentContainer.eventHandler and not currentContainer.disabled then
+					currentContainer.eventHandler(container, currentContainer, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32)
+				end
+
+				currentContainerPassed = not currentContainer.passScreenEvents
+			elseif currentContainer.eventHandler then
+				currentContainer.eventHandler(container, currentContainer, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32)
+			end
+
+			for i = #currentContainer.children, 1, -1 do
+				child = currentContainer.children[i]
+
+				if not child.hidden then
+					if child.children then
+						newIntersectionX1, newIntersectionY1, newIntersectionX2, newIntersectionY2 = getRectangleIntersection(
+							intersectionX1,
+							intersectionY1,
+							intersectionX2,
+							intersectionY2,
+							child.x,
+							child.y,
+							child.x + child.width - 1,
+							child.y + child.height - 1
+						)
+
+						if 
+							newIntersectionX1 and
+							handle(
+								isScreenEvent,
+								child,
+								newIntersectionX1,
+								newIntersectionY1,
+								newIntersectionX2,
+								newIntersectionY2,
+								e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32
+							)
+						then
+							return true
+						end
+					else
+						if container.needConsume then
+							container.needConsume = nil
+							return true
+						end
+
+						if isScreenEvent then
+							if 
+								e3 >= child.x and
+								e3 <= child.x + child.width - 1 and
+								e4 >= child.y and
+								e4 <= child.y + child.height - 1
+							then
+								if child.eventHandler and not child.disabled then
+									child.eventHandler(container, child, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32)
+								end
+
+								if not child.passScreenEvents then
+									return true
+								end
+							end
+						elseif child.eventHandler then
+							child.eventHandler(container, child, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32)
+						end
+					end
+				end
+			end
+
+			if currentContainerPassed then
+				return true
+			end
+		end
+	end
+
+	container.eventPullTimeout = eventPullTimeout
+
+	repeat
+		e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32 = event.pull(container.animations and 0 or container.eventPullTimeout)
+		
+		handle(
+			e1 == "touch" or
+			e1 == "drag" or
+			e1 == "drop" or
+			e1 == "scroll" or
+			e1 == "double_touch",
+			container,
+			container.x,
+			container.y,
+			container.x + container.width - 1,
+			container.y + container.height - 1
+		)
+
+		if container.animations then
+			animationIndex, animationOnFinishMethods = 1, {}
+			-- Продрачиваем анимации и вызываем обработчики кадров
+			while animationIndex <= #container.animations do
+				animation = container.animations[animationIndex]
+
+				if animation.removeLater then
+					table.remove(container.animations, animationIndex)
+
+					if #container.animations == 0 then
+						container.animations = nil
+						break
+					end
+				else
+					if animation.started then
+						animation.position = (computer.uptime() - animation.startUptime) / animation.duration
+						
+						if animation.position < 1 then
+							animation.frameHandler(container, animation)
+						else
+							animation.position, animation.started = 1, false
+							animation.frameHandler(container, animation)
+							
+							if animation.onFinish then
+								table.insert(animationOnFinishMethods, animation)
+							end
+						end
+					end
+
+					animationIndex = animationIndex + 1
+				end
+			end
+			if filter(e1) then
+				return e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32
+			end
+			-- По завершению продрочки отрисовываем изменения на экране
+			container:drawOnScreen()
+			if eventPullTimeout then return end
+			-- Вызываем поочередно все методы .onFinish
+			for i = 1, #animationOnFinishMethods do
+				animationOnFinishMethods[i].onFinish(container, animationOnFinishMethods[i])
+			end
+		end
+	until container.needClose
+
+	container.needClose = nil
+end
 local function containerStartEventHandling(container, eventPullTimeout)
 	local animation, animationIndex, animationOnFinishMethods, e1, e2, e3, e4, e5, e6, e7, e8, e9, e10, e11, e12, e13, e14, e15, e16, e17, e18, e19, e20, e21, e22, e23, e24, e25, e26, e27, e28, e29, e30, e31, e32
 	
@@ -527,6 +679,7 @@ function GUI.container(x, y, width, height)
 	container.stopEventHandling = containerStopEventHandling
 	container.passScreenEvents = true
 	container.consumeEvent = containerConsumeEvent
+	container.pullAndHandleEvents = containerPullAndHandleEvents
 
 	return container
 end
